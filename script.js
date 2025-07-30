@@ -1,38 +1,26 @@
-// Import Supabase (akan di-load dari CDN)
-let supabase;
-
-// Inisialisasi Supabase
-function initSupabase() {
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-    const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || 'your-anon-key';
-    
-    if (SUPABASE_URL && SUPABASE_KEY) {
-        supabase = {
-            from: (table) => ({
-                insert: (data) => fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify(data)
-                }),
-                select: () => fetch(`${SUPABASE_URL}/rest/v1/${table}?order=created_at.desc&limit=20`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
-                })
-            })
-        };
-    }
-}
-
+// Debug: Cek apakah environment variables terbaca
+setTimeout(() => {
+    console.log('=== DEBUG ENVIRONMENT VARIABLES ===');
+    console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
+    console.log('VITE_SUPABASE_KEY:', import.meta.env.VITE_SUPABASE_KEY ? '✓ Ada' : '✗ Tidak ada');
+    console.log('====================================');
+}, 2000);
 // Variabel Global
 let html5QrCode;
 let scanning = false;
+let supabaseUrl, supabaseKey;
+
+// Inisialisasi saat halaman dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    // Dapatkan environment variables dari Netlify
+    supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
+    
+    console.log('Supabase URL:', supabaseUrl ? '✓ Tersedia' : '✗ Tidak ditemukan');
+    console.log('Supabase Key:', supabaseKey ? '✓ Tersedia' : '✗ Tidak ditemukan');
+    
+    loadVisitorData();
+});
 
 // Navigation Function
 function showSection(section) {
@@ -76,6 +64,7 @@ function initScanner() {
         document.querySelector('button[onclick="initScanner()"]').textContent = "Stop Scan";
     }).catch(err => {
         alert("Gagal mengakses kamera. Pastikan izin kamera diberikan.");
+        console.error("Scanner error:", err);
     });
 }
 
@@ -103,14 +92,26 @@ document.getElementById('visitorForm').addEventListener('submit', async function
     };
     
     try {
-        // Simpan ke Supabase
-        if (supabase) {
-            const response = await supabase.from('pengunjung').insert(visitorData);
+        // Simpan ke Supabase jika credentials tersedia
+        if (supabaseUrl && supabaseKey) {
+            const response = await fetch(`${supabaseUrl}/rest/v1/pengunjung`, {
+                method: 'POST',
+                headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify(visitorData)
+            });
+            
             if (response.ok) {
                 alert('Data berhasil disimpan ke database!');
             } else {
                 throw new Error('Gagal menyimpan ke database');
             }
+        } else {
+            console.log('Supabase credentials tidak ditemukan, simpan ke localStorage');
         }
         
         // Simpan ke localStorage sebagai backup
@@ -141,22 +142,32 @@ async function loadVisitorData() {
     visitorDataDiv.innerHTML = '<p style="text-align:center;">Memuat data...</p>';
     
     try {
-        // Coba load dari Supabase dulu
-        if (supabase) {
-            const response = await supabase.from('pengunjung').select();
+        // Coba load dari Supabase dulu jika credentials tersedia
+        if (supabaseUrl && supabaseKey) {
+            const response = await fetch(`${supabaseUrl}/rest/v1/pengunjung?order=created_at.desc&limit=20`, {
+                headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`
+                }
+            });
+            
             if (response.ok) {
                 const data = await response.json();
                 displayVisitors(data);
                 return;
+            } else {
+                throw new Error('Gagal mengambil data dari Supabase');
             }
         }
         
-        // Jika gagal, load dari localStorage
+        // Jika tidak ada credentials atau gagal, load dari localStorage
+        console.log('Menggunakan data lokal');
         const localData = JSON.parse(localStorage.getItem('visitors') || '[]');
         displayVisitors(localData);
         
     } catch (error) {
         console.error('Error loading data:', error);
+        // Fallback ke localStorage
         const localData = JSON.parse(localStorage.getItem('visitors') || '[]');
         displayVisitors(localData);
     }
@@ -179,11 +190,11 @@ function displayVisitors(data) {
             
         html += `
             <div class="visitor-item">
-                <h3>${visitor.nama}</h3>
-                <p><strong>Kelas:</strong> ${visitor.kelas}</p>
-                <p><strong>Aktivitas:</strong> ${visitor.aktivitas}</p>
-                <p><strong>Buku:</strong> ${visitor.judul_buku}</p>
-                <p><strong>Status:</strong> ${visitor.status}</p>
+                <h3>${visitor.nama || 'Tidak ada nama'}</h3>
+                <p><strong>Kelas:</strong> ${visitor.kelas || '-'}</p>
+                <p><strong>Aktivitas:</strong> ${visitor.aktivitas || '-'}</p>
+                <p><strong>Buku:</strong> ${visitor.judul_buku || '-'}</p>
+                <p><strong>Status:</strong> ${visitor.status || '-'}</p>
                 <p><strong>QR:</strong> ${visitor.qr_buku || '-'}</p>
                 <p><strong>Waktu:</strong> ${waktu}</p>
             </div>
@@ -192,12 +203,6 @@ function displayVisitors(data) {
     
     visitorDataDiv.innerHTML = html;
 }
-
-// Inisialisasi saat halaman dimuat
-document.addEventListener('DOMContentLoaded', function() {
-    initSupabase();
-    loadVisitorData();
-});
 
 // Cleanup saat halaman ditutup
 window.addEventListener('beforeunload', function() {
