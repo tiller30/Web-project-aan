@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perpustakaan Laut</title>
+    <title>Perpustakaan MUGRES B</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,10 +11,12 @@
         <div class="bubble"></div>
         <div class="bubble"></div>
         <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
     </div>
     
     <header>
-        <h1>🌊 Perpustakaan Laut</h1>
+        <h1>Perpustakaan MUGRES B</h1>
         <nav>
             <button onclick="showSection('scanner')">🔍 Scan Buku</button>
             <button onclick="showSection('visitor')">👥 Pengunjung</button>
@@ -25,10 +27,13 @@
         <!-- Scanner Section -->
         <section id="scanner-section" class="section active">
             <div class="card">
-                <h2>📸 Scan Buku</h2>
-                <div id="qr-reader" style="width:100%;max-width:300px;"></div>
-                <div id="qr-result" class="result-box"></div>
-                <button onclick="initScanner()" class="btn-primary">Mulai Scan</button>
+                <h2>📸 Scanner QR Buku</h2>
+                <div id="qr-reader" style="width:100%;max-width:300px;margin:0 auto;"></div>
+                <div id="qr-result" class="result-box">Arahkan kamera ke QR Code buku</div>
+                <button onclick="initScanner()" class="btn-primary" id="scanButton">Mulai Scan</button>
+                <p style="text-align:center;margin-top:1rem;font-size:0.9rem;opacity:0.8;">
+                    Pastikan izin kamera sudah diberikan
+                </p>
             </div>
         </section>
 
@@ -37,33 +42,38 @@
             <div class="card">
                 <h2>📝 Data Pengunjung</h2>
                 <form id="visitorForm">
-                    <input type="text" id="nama" placeholder="Nama Lengkap" required>
-                    <input type="text" id="kelas" placeholder="Kelas" required>
+                    <input type="text" id="nama" placeholder="Nama Lengkap *" required>
+                    <input type="text" id="kelas" placeholder="Kelas *" required>
                     <select id="aktivitas" required>
-                        <option value="">Pilih Aktivitas</option>
+                        <option value="">Pilih Aktivitas *</option>
                         <option value="membaca">Membaca</option>
                         <option value="meminjam">Meminjam</option>
                         <option value="mengembalikan">Mengembalikan</option>
                     </select>
-                    <input type="text" id="judul_buku" placeholder="Judul Buku" required>
+                    <input type="text" id="judul_buku" placeholder="Judul Buku *" required>
                     <select id="status" required>
-                        <option value="">Status Buku</option>
+                        <option value="">Status Buku *</option>
                         <option value="dibaca">Dibaca</option>
                         <option value="dipinjam">Dipinjam</option>
                         <option value="dikembalikan">Dikembalikan</option>
                     </select>
-                    <input type="text" id="qr_buku" placeholder="QR Buku" readonly>
-                    <button type="submit" class="btn-primary">Simpan Data</button>
+                    <input type="text" id="qr_buku" placeholder="QR Buku (otomatis dari scan)" readonly>
+                    <button type="submit" class="btn-primary">💾 Simpan Data Pengunjung</button>
                 </form>
             </div>
             
             <div class="card">
                 <h2>📋 Riwayat Pengunjung</h2>
-                <div id="visitorData"></div>
+                <div id="visitorData">
+                    <div style="text-align:center;padding:2rem;">
+                        <p>Memuat data pengunjung...</p>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
 
+    <!-- Library CDN -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="script.js"></script>
 </body>
