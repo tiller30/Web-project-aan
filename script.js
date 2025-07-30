@@ -1,3 +1,6 @@
+// Debugging - Log semua proses
+console.log('🚀 Script dimuat...');
+
 // Variabel Global
 let html5QrCode;
 let scanning = false;
@@ -5,21 +8,34 @@ let supabaseUrl, supabaseKey;
 
 // Inisialisasi saat halaman dimuat
 document.addEventListener('DOMContentLoaded', function() {
-    // Dapatkan environment variables dari Netlify
-    supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
+    console.log('✅ DOM Loaded');
     
-    console.log('Supabase Config:', {
-        url: supabaseUrl ? '✓ Tersedia' : '✗ Tidak ditemukan',
-        key: supabaseKey ? '✓ Tersedia' : '✗ Tidak ditemukan'
+    // Dapatkan environment variables dari Netlify
+    supabaseUrl = import.meta.env ? import.meta.env.VITE_SUPABASE_URL : null;
+    supabaseKey = import.meta.env ? import.meta.env.VITE_SUPABASE_KEY : null;
+    
+    console.log('🔐 Supabase Config:', {
+        url: supabaseUrl ? '✓ Ada' : '✗ Tidak ada',
+        key: supabaseKey ? '✓ Ada' : '✗ Tidak ada'
     });
     
     // Muat data pengunjung
     loadVisitorData();
+    
+    // Setup form submit listener
+    const form = document.getElementById('visitorForm');
+    if (form) {
+        form.addEventListener('submit', handleFormSubmit);
+        console.log('✅ Form listener ditambahkan');
+    } else {
+        console.error('❌ Form tidak ditemukan');
+    }
 });
 
 // Navigation Function
 function showSection(section) {
+    console.log('🧭 Navigasi ke section:', section);
+    
     // Sembunyikan semua section
     document.querySelectorAll('.section').forEach(sec => {
         sec.classList.remove('active');
@@ -30,95 +46,162 @@ function showSection(section) {
         document.getElementById('scanner-section').classList.add('active');
     } else if (section === 'visitor') {
         document.getElementById('visitor-section').classList.add('active');
+        loadVisitorData(); // Refresh data saat buka halaman
     }
 }
 
-// Scanner Function - DIPERBAIKI
+// Scanner Function - FIXED
 function initScanner() {
+    console.log('📷 Mencoba inisialisasi scanner...');
+    
     const qrReader = document.getElementById('qr-reader');
+    const scanButton = document.getElementById('scanButton');
+    const resultBox = document.getElementById('qr-result');
+    
+    if (!qrReader) {
+        console.error('❌ QR Reader element tidak ditemukan');
+        alert('Error: Element scanner tidak ditemukan');
+        return;
+    }
     
     if (scanning) {
-        // Stop scanner jika sudah berjalan
+        // Stop scanner
+        console.log('⏹️ Menghentikan scanner...');
         if (html5QrCode) {
             html5QrCode.stop().then(() => {
                 html5QrCode.clear();
                 scanning = false;
-                document.querySelector('button[onclick="initScanner()"]').textContent = "Mulai Scan";
+                if (scanButton) scanButton.textContent = "Mulai Scan";
+                if (resultBox) resultBox.textContent = "Arahkan kamera ke QR Code buku";
+                console.log('✅ Scanner dihentikan');
             }).catch(err => {
-                console.error("Error stopping scanner:", err);
+                console.error('❌ Error stopping scanner:', err);
             });
         }
         return;
     }
     
     // Mulai scanner
-    html5QrCode = new Html5Qrcode("qr-reader");
-    
-    const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-    };
-    
-    html5QrCode.start(
-        { facingMode: "environment" },
-        config,
-        (decodedText, decodedResult) => {
-            // QR Code terdeteksi
-            document.getElementById('qr-result').innerHTML = `✅ QR Terdeteksi: ${decodedText}`;
-            document.getElementById('qr_buku').value = decodedText;
+    try {
+        html5QrCode = new Html5Qrcode("qr-reader");
+        console.log('✅ Html5Qrcode instance dibuat');
+        
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+        };
+        
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText, decodedResult) => {
+                // QR Code terdeteksi
+                console.log('✅ QR Code terdeteksi:', decodedText);
+                
+                if (resultBox) {
+                    resultBox.textContent = `✅ QR Terdeteksi: ${decodedText}`;
+                    resultBox.classList.add('success');
+                }
+                
+                // Isi field QR di form
+                const qrInput = document.getElementById('qr_buku');
+                if (qrInput) {
+                    qrInput.value = decodedText;
+                }
+                
+                // Stop scanner otomatis
+                setTimeout(() => {
+                    if (html5QrCode && scanning) {
+                        html5QrCode.stop().then(() => {
+                            html5QrCode.clear();
+                            scanning = false;
+                            if (scanButton) scanButton.textContent = "Mulai Scan";
+                            console.log('✅ Scanner dihentikan setelah scan');
+                        }).catch(err => {
+                            console.error('❌ Error stopping scanner:', err);
+                        });
+                    }
+                }, 1000);
+            },
+            (errorMessage) => {
+                // Error scanning (normal, tidak perlu ditampilkan)
+                // console.log('🔍 Scanning...', errorMessage);
+            }
+        ).then(() => {
+            scanning = true;
+            if (scanButton) scanButton.textContent = "Stop Scan";
+            if (resultBox) {
+                resultBox.textContent = "🔍 Sedang mencari QR Code...";
+                resultBox.classList.remove('success');
+            }
+            console.log('✅ Scanner berhasil dimulai');
+        }).catch(err => {
+            console.error('❌ Gagal memulai scanner:', err);
+            alert("❌ Gagal mengakses kamera. Pastikan:\n1. Izin kamera sudah diberikan\n2. Kamera HP berfungsi\n3. Gunakan browser Chrome");
             
-            // Stop scanner setelah berhasil scan
-            html5QrCode.stop().then(() => {
-                html5QrCode.clear();
-                scanning = false;
-                document.querySelector('button[onclick="initScanner()"]').textContent = "Mulai Scan";
-            }).catch(err => {
-                console.error("Error stopping scanner:", err);
-            });
-        },
-        (errorMessage) => {
-            // Error scanning (biasanya QR tidak terdeteksi)
-            // Tidak perlu tampilkan error karena ini normal
-        }
-    ).then(() => {
-        scanning = true;
-        document.querySelector('button[onclick="initScanner()"]').textContent = "Stop Scan";
-        console.log("Scanner started successfully");
-    }).catch(err => {
-        console.error("Unable to start scanner:", err);
-        alert("Gagal mengakses kamera. Pastikan izin kamera diberikan dan kamera tersedia.");
-    });
+            if (resultBox) {
+                resultBox.textContent = "❌ Gagal mengakses kamera";
+                resultBox.classList.remove('success');
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error creating Html5Qrcode:', error);
+        alert("❌ Error sistem scanner: " + error.message);
+    }
 }
 
-// Visitor Form Handling - DIPERBAIKI
-document.getElementById('visitorForm').addEventListener('submit', async function(e) {
+// Form Submit Handler - FIXED
+async function handleFormSubmit(e) {
     e.preventDefault();
+    console.log('📥 Form submit dimulai...');
     
     // Ambil data dari form
-    const visitorData = {
-        nama: document.getElementById('nama').value.trim(),
-        kelas: document.getElementById('kelas').value.trim(),
-        aktivitas: document.getElementById('aktivitas').value,
-        judul_buku: document.getElementById('judul_buku').value.trim(),
-        status: document.getElementById('status').value,
-        qr_buku: document.getElementById('qr_buku').value.trim(),
+    const formData = {
+        nama: document.getElementById('nama')?.value.trim(),
+        kelas: document.getElementById('kelas')?.value.trim(),
+        aktivitas: document.getElementById('aktivitas')?.value,
+        judul_buku: document.getElementById('judul_buku')?.value.trim(),
+        status: document.getElementById('status')?.value,
+        qr_buku: document.getElementById('qr_buku')?.value.trim(),
         created_at: new Date().toISOString()
     };
     
+    console.log('📝 Data form:', formData);
+    
     // Validasi form
-    if (!visitorData.nama || !visitorData.kelas || !visitorData.aktivitas || 
-        !visitorData.judul_buku || !visitorData.status) {
-        alert('Mohon lengkapi semua field yang wajib diisi!');
+    const requiredFields = ['nama', 'kelas', 'aktivitas', 'judul_buku', 'status'];
+    const missingFields = requiredFields.filter(field => !formData[field]);
+    
+    if (missingFields.length > 0) {
+        const fieldNames = {
+            nama: 'Nama Lengkap',
+            kelas: 'Kelas',
+            aktivitas: 'Aktivitas',
+            judul_buku: 'Judul Buku',
+            status: 'Status Buku'
+        };
+        
+        const missingNames = missingFields.map(field => fieldNames[field]);
+        alert(`⚠️ Mohon lengkapi field berikut:\n- ${missingNames.join('\n- ')}`);
+        console.log('❌ Validasi gagal:', missingFields);
         return;
     }
     
-    console.log('Menyimpan data:', visitorData);
+    // Disable tombol submit sementara
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    if (submitButton) {
+        const originalText = submitButton.textContent;
+        submitButton.textContent = "💾 Menyimpan...";
+        submitButton.disabled = true;
+    }
     
     try {
         let savedToDatabase = false;
         
         // Simpan ke Supabase jika credentials tersedia
         if (supabaseUrl && supabaseKey) {
+            console.log('☁️ Mencoba menyimpan ke Supabase...');
             try {
                 const response = await fetch(`${supabaseUrl}/rest/v1/pengunjung`, {
                     method: 'POST',
@@ -129,84 +212,99 @@ document.getElementById('visitorForm').addEventListener('submit', async function
                         'Prefer': 'return=minimal'
                     },
                     body: JSON.stringify({
-                        nama: visitorData.nama,
-                        kelas: visitorData.kelas,
-                        aktivitas: visitorData.aktivitas,
-                        judul_buku: visitorData.judul_buku,
-                        status: visitorData.status,
-                        qr_buku: visitorData.qr_buku
+                        nama: formData.nama,
+                        kelas: formData.kelas,
+                        aktivitas: formData.aktivitas,
+                        judul_buku: formData.judul_buku,
+                        status: formData.status,
+                        qr_buku: formData.qr_buku || null
                     })
                 });
                 
                 if (response.ok) {
-                    console.log('Data tersimpan ke Supabase');
+                    console.log('✅ Data tersimpan ke Supabase');
                     savedToDatabase = true;
-                    alert('Data berhasil disimpan ke database!');
+                    alert('✅ Data berhasil disimpan ke database!');
                 } else {
-                    console.error('Gagal menyimpan ke Supabase:', response.status);
+                    const errorText = await response.text();
+                    console.error('❌ Gagal menyimpan ke Supabase:', response.status, errorText);
                 }
             } catch (dbError) {
-                console.error('Database error:', dbError);
+                console.error('❌ Database connection error:', dbError);
             }
+        } else {
+            console.log('⚠️ Supabase credentials tidak tersedia, menggunakan localStorage');
         }
         
         // Simpan ke localStorage sebagai backup
-        saveToLocal(visitorData);
+        saveToLocal(formData);
         
         // Reset form
-        this.reset();
+        e.target.reset();
         
         // Refresh data pengunjung
-        loadVisitorData();
+        await loadVisitorData();
         
-        // Jika tidak tersimpan ke database, beri tahu user
+        // Jika tidak tersimpan ke database tapi seharusnya bisa
         if (!savedToDatabase && (supabaseUrl && supabaseKey)) {
-            alert('Data disimpan secara lokal. Koneksi database tidak tersedia.');
+            alert('💾 Data disimpan secara lokal. Koneksi database tidak tersedia.');
         }
         
     } catch (error) {
-        console.error('Error saving data:', error);
+        console.error('❌ Error saving data:', error);
+        alert('❌ Terjadi kesalahan: ' + error.message);
+        
         // Simpan ke lokal sebagai fallback
-        saveToLocal(visitorData);
-        alert('Data disimpan secara lokal karena ada masalah koneksi.');
-        loadVisitorData();
+        saveToLocal(formData);
+        await loadVisitorData();
+        
+    } finally {
+        // Enable kembali tombol submit
+        if (submitButton) {
+            submitButton.textContent = "💾 Simpan Data Pengunjung";
+            submitButton.disabled = false;
+        }
     }
-});
+}
 
-// Simpan ke localStorage
+// Simpan ke localStorage - FIXED
 function saveToLocal(data) {
     try {
+        console.log('💾 Menyimpan ke localStorage...');
         let visitors = JSON.parse(localStorage.getItem('visitors') || '[]');
         visitors.unshift(data); // Tambah di awal
+        
         // Batasi 50 data terakhir
         if (visitors.length > 50) {
             visitors = visitors.slice(0, 50);
         }
+        
         localStorage.setItem('visitors', JSON.stringify(visitors));
-        console.log('Data tersimpan ke localStorage');
+        console.log('✅ Data tersimpan ke localStorage (' + visitors.length + ' items)');
     } catch (error) {
-        console.error('Error saving to localStorage:', error);
+        console.error('❌ Error saving to localStorage:', error);
     }
 }
 
-// Muat dan tampilkan data pengunjung - DIPERBAIKI
+// Muat dan tampilkan data pengunjung - FIXED
 async function loadVisitorData() {
-    const visitorDataDiv = document.getElementById('visitorData');
+    console.log('📊 Memuat data pengunjung...');
     
+    const visitorDataDiv = document.getElementById('visitorData');
     if (!visitorDataDiv) {
-        console.error('Visitor data div not found');
+        console.error('❌ Visitor data div tidak ditemukan');
         return;
     }
     
-    visitorDataDiv.innerHTML = '<p style="text-align:center;">Memuat data pengunjung...</p>';
+    visitorDataDiv.innerHTML = '<div style="text-align:center;padding:2rem;"><p>🔄 Memuat data pengunjung...</p></div>';
     
     try {
         let visitors = [];
         
         // Coba load dari Supabase dulu jika credentials tersedia
         if (supabaseUrl && supabaseKey) {
+            console.log('☁️ Mengambil data dari Supabase...');
             try {
-                console.log('Mengambil data dari Supabase...');
                 const response = await fetch(`${supabaseUrl}/rest/v1/pengunjung?order=created_at.desc&limit=20`, {
                     headers: {
                         'apikey': supabaseKey,
@@ -216,45 +314,53 @@ async function loadVisitorData() {
                 
                 if (response.ok) {
                     visitors = await response.json();
-                    console.log('Data dari Supabase:', visitors.length, 'item');
+                    console.log('✅ Data dari Supabase:', visitors.length, 'item');
                 } else {
-                    console.error('Gagal mengambil data dari Supabase:', response.status);
+                    console.error('❌ Gagal mengambil data dari Supabase:', response.status);
                 }
             } catch (dbError) {
-                console.error('Database fetch error:', dbError);
+                console.error('❌ Database fetch error:', dbError);
             }
         }
         
         // Jika tidak ada data dari database, gunakan localStorage
         if (visitors.length === 0) {
-            console.log('Menggunakan data dari localStorage');
-            visitors = JSON.parse(localStorage.getItem('visitors') || '[]');
+            console.log('💾 Menggunakan data dari localStorage');
+            try {
+                visitors = JSON.parse(localStorage.getItem('visitors') || '[]');
+                console.log('✅ Data dari localStorage:', visitors.length, 'item');
+            } catch (localError) {
+                console.error('❌ Error parsing localStorage:', localError);
+                visitors = [];
+            }
         }
         
         displayVisitors(visitors);
         
     } catch (error) {
-        console.error('Error loading visitor data:', error);
+        console.error('❌ Error loading visitor data:', error);
+        
         // Fallback ke localStorage
         try {
             const localData = JSON.parse(localStorage.getItem('visitors') || '[]');
             displayVisitors(localData);
         } catch (localError) {
-            console.error('Error loading local data:', localError);
+            console.error('❌ Error loading local data:', localError);
             displayVisitors([]);
         }
     }
 }
 
-// Tampilkan data pengunjung - DIPERBAIKI
+// Tampilkan data pengunjung - FIXED
 function displayVisitors(data) {
-    const visitorDataDiv = document.getElementById('visitorData');
+    console.log('📋 Menampilkan data pengunjung:', data.length, 'item');
     
+    const visitorDataDiv = document.getElementById('visitorData');
     if (!visitorDataDiv) return;
     
     if (!data || data.length === 0) {
         visitorDataDiv.innerHTML = `
-            <div style="text-align:center; padding:2rem; background:rgba(255,255,255,0.1); border-radius:10px;">
+            <div style="text-align:center; padding:2rem; background:rgba(255,255,255,0.1); border-radius:10px; margin:1rem 0;">
                 <h3>📭 Tidak ada data pengunjung</h3>
                 <p>Data pengunjung akan muncul di sini setelah form diisi</p>
             </div>
@@ -279,13 +385,13 @@ function displayVisitors(data) {
                     });
                 }
             } catch (dateError) {
-                console.error('Date parsing error:', dateError);
+                console.error('📅 Date parsing error:', dateError);
             }
         }
         
         html += `
-            <div class="visitor-item" style="animation: fadeIn 0.3s ease ${index * 0.1}s both;">
-                <h3 style="color:#00ccff; margin-bottom:0.5rem;">${visitor.nama || 'Tidak ada nama'}</h3>
+            <div class="visitor-item" style="animation-delay: ${index * 0.1}s;">
+                <h3>${visitor.nama || 'Tidak ada nama'}</h3>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.9rem;">
                     <p><strong>📚 Kelas:</strong> ${visitor.kelas || '-'}</p>
                     <p><strong>⚡ Aktivitas:</strong> ${visitor.aktivitas || '-'}</p>
@@ -305,8 +411,8 @@ function displayVisitors(data) {
         const style = document.createElement('style');
         style.id = 'visitor-styles';
         style.textContent = `
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(10px); }
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(20px); }
                 to { opacity: 1; transform: translateY(0); }
             }
             .visitor-item {
@@ -315,7 +421,9 @@ function displayVisitors(data) {
                 border-radius: 10px;
                 margin-bottom: 0.8rem;
                 backdrop-filter: blur(5px);
-                border-left: 3px solid #00ccff;
+                border-left: 4px solid #00ccff;
+                animation: fadeInUp 0.5s ease forwards;
+                opacity: 0;
             }
         `;
         document.head.appendChild(style);
@@ -324,14 +432,19 @@ function displayVisitors(data) {
 
 // Cleanup saat halaman ditutup
 window.addEventListener('beforeunload', function() {
+    console.log('🧹 Cleaning up...');
     if (html5QrCode && scanning) {
-        html5QrCode.stop().catch(console.error);
+        html5QrCode.stop().catch(err => {
+            console.error('❌ Error stopping scanner on unload:', err);
+        });
     }
 });
 
-// Tambahkan event listener untuk tombol scanner
+// Debug: Tambahkan event listener untuk semua tombol
 document.addEventListener('click', function(e) {
-    if (e.target.matches('button[onclick="initScanner()"]')) {
-        initScanner();
+    if (e.target.tagName === 'BUTTON') {
+        console.log('🖱️ Button clicked:', e.target.textContent);
     }
 });
+
+console.log('🎉 Script inisialisasi selesai');
