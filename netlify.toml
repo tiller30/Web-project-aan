@@ -1,5 +1,5 @@
 [build]
-  publish = "."
+  publish = "public"
   command = "echo 'No build command needed'"
 
 [[redirects]]
@@ -7,18 +7,6 @@
   to = "/index.html"
   status = 200
 
-[functions]
-  directory = "netlify/functions"
-
-[dev]
-  command = "echo 'Development server not required'"
-  port = 3000
-  targetPort = 3000
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
+[template.environment]
+  VITE_SUPABASE_URL = "Your Supabase URL"
+  VITE_SUPABASE_KEY = "Your Supabase Anon Key"
