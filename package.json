@@ -1,0 +1,12 @@
+{
+  "name": "perpustakaan-laut",
+  "version": "1.0.0",
+  "description": "Website perpustakaan bertema laut",
+  "main": "index.html",
+  "scripts": {
+    "start": "index.html"
+  },
+  "keywords": ["perpustakaan", "laut", "scanner"],
+  "author": "Pengguna Handphone",
+  "license": "MIT"
+}
