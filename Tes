@@ -1,2 +1,0 @@
-mkdir -p src/lib
-touch src/lib/supabase.js
